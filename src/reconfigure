@@ -1,0 +1,11 @@
+../configure \
+--prefix="$HOME/prj/XyceInstall" \
+--enable-shared --enable-xyce-shareable \
+ARCHDIR="$HOME/prj/XyceLibs/Serial_shared" \
+CXXFLAGS="-g" \
+CFLAGS="-g -Wa,-mbig-obj" \
+CPPFLAGS="-D_BSD_SOURCE -Wa,-mbig-obj" \
+CXX=g++ \
+CC=gcc \
+F77=/usr/bin/gfortran \
+
