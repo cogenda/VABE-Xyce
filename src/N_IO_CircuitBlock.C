@@ -1038,7 +1038,8 @@ bool CircuitBlock::handleLinePass1(
   std::vector< std::string > &  libInside)
 {
   result = true;
-
+  static std::string xyce_install_path=".";
+  static std::string hdl_headerpath=".";
   char lineType;
   TokenVector line;
   ExtendedString ES1 ( " " ); 
@@ -1367,6 +1368,22 @@ bool CircuitBlock::handleLinePass1(
     }
 
     // added to support verilog-A
+    // For user to give Xyce install path
+    else if (ES1 == ".XYCEINSTALLPATH")
+    {
+      xyce_install_path=line[1].string_;
+      int len = xyce_install_path.length();
+      if(xyce_install_path[len] == '"' && xyce_install_path[0] == '"')
+	xyce_install_path = xyce_install_path.substr(1, len - 2);
+    }
+    // For user to give Verilog-A common header path (e.g.,disciplines.vams etc)
+    else if (ES1 == ".HDLHEADERPATH" )
+    {
+      hdl_headerpath=line[1].string_;
+      int len = hdl_headerpath.length();
+      if(hdl_headerpath[len] == '"' && hdl_headerpath[0] == '"')
+	hdl_headerpath = hdl_headerpath.substr(1, len - 2);
+    }
     else if (ES1 == ".HDL")
       {
 	result = true;
@@ -1379,29 +1396,23 @@ bool CircuitBlock::handleLinePass1(
 	int result_va, result_so;
 
 	if(filename[len] == '"' && filename[0] == '"')
-	  {
-	    filename = filename.substr(1, len - 2);
-	  }
+	  filename = filename.substr(1, len - 2);
 	
-	size_t pos = filename.rfind('.');
-	std::string modulename;
+	std::string modulename, filename_base;
+        filename_base = std::string(basename(filename.c_str()));
+	size_t pos = filename_base.rfind('.');
 
 	if(pos != std::string::npos)
-	  {
-	    modulename = filename.substr(0, pos);
-	  }
+	  modulename = filename_base.substr(0, pos);
 	else
-	  {
-	    modulename = filename;
-	  }
+	  modulename = filename_base;
 
-	std::string so_name = "vcomp/lib" + modulename + ".so";
-	std::string path = "vcomp/lib" + modulename + ".so";
+	std::string so_name = "vabuild/lib" + modulename + ".so";
+	std::string path = "vabuild/lib" + modulename + ".so";
 	result_va = stat(filename.c_str(), & va_stat);
 	result_so = stat(so_name.c_str(), & so_stat);
-	void (*regFunc)();
-	void *handle;
 
+	void *handle;
 	if(result_va != 0)
 	  {
 	    Report::UserError().at(netlistFilename_, line[0].lineNumber_)
@@ -1413,31 +1424,31 @@ bool CircuitBlock::handleLinePass1(
 	    if(result_so != 0 || (result_so == 0 && (so_stat.st_mtime < va_stat.st_mtime) ))
 	      {
 		std::string cmd;
-		// mkdir vcomp
-		system("rm -rf vcomp");
-		system("mkdir vcomp");
-		cmd = "xyce_vcomp " + filename + " " + modulename;
+		// mkdir vabuild
+		system("mkdir -p vabuild");
+		system("rm -rf vabuild/*");
+                if (hdl_headerpath != "")
+                {
+                  cmd = "cp " + hdl_headerpath + "/* .";
+		  system(cmd.c_str());
+                }
+		cmd = xyce_install_path + "/bin/xyce_vams " + filename;
+                std::cout << "VA code gen:" <<cmd<<std::endl;
 		system(cmd.c_str());
-		cmd = "mv " + modulename + ".C vcomp";
-		system(cmd.c_str());
-		cmd = "mv " + modulename + ".h vcomp; mv disciplines.* vcomp";
+		cmd  = "cd vabuild; ln -sf ../" + modulename + ".* . ;";
+		cmd += "ln -sf " + filename + " . ";
 		system(cmd.c_str());
 		std::string compileCmd;
 		std::string linkCmd;
-
+                
 		compileCmd = "g++ -g -O0 \
-                              -I/home/zbgnvh/prj/xyce/Xyce-6.8/src/LinearAlgebraServicesPKG/ \
-                              -I/home/zbgnvh/prj/xyce/Xyce-6.8/src/DeviceModelPKG/Core/ \
-                              -I/home/zbgnvh/prj/xyce/Xyce-6.8/src \
-                              -I/home/zbgnvh/prj/xyce/Xyce-6.8/src/UtilityPKG/ \
-                              -I/home/zbgnvh/prj/xyce/Xyce-6.8/src/IOInterfacePKG/ \
-                              -I/home/zbgnvh/prj/xyce/Xyce-6.8/src/ParallelDistPKG/ \
-                              -I/home/zbgnvh/prj/xyce/Xyce-6.8/src/AnalysisPKG/ \
-                              -I/home/zbgnvh/prj/xyce/Xyce-6.8/src/NonlinearSolverPKG/ \
-                              -I/home/zbgnvh/prj/xyce/Xyce-6.8/src/ErrorHandlingPKG/ \
-                              -I/home/zbgnvh/prj/XyceLibs/Serial/include/ -fPIC -c vcomp/" \
-                              + modulename + ".C -o vcomp/" + modulename + ".o";
-		linkCmd = "g++ -g -O0 -m64 -Wl,-O1 -shared -o vcomp/lib" + modulename + ".so vcomp/" + modulename + ".o";
+                              -I" + xyce_install_path + "/include/ \
+                              -fPIC -c vabuild/" \
+                              + modulename + ".C -o vabuild/" + modulename + ".o";
+                std::cout << "VA code compile:" <<compileCmd<<std::endl;
+		linkCmd = "g++ -g -O0 -m64 -Wl,-O1 -shared -o vabuild/lib" + modulename + ".so -L" + xyce_install_path + "/lib/ -lxyce  \
+                           -Wl,-rpath=" + xyce_install_path + "/lib vabuild/" + modulename + ".o";
+                std::cout << "VA so build:" << linkCmd <<std::endl;
 		system(compileCmd.c_str());
 		system(linkCmd.c_str());
 	      }
@@ -1448,7 +1459,6 @@ bool CircuitBlock::handleLinePass1(
 	    char *error;
 
 	    handle = dlopen(path.c_str(), RTLD_LAZY);
-	    std::cout << path << std::endl;
 	    if(!handle)
 	      {
 		std::cout << dlerror() << std::endl;
@@ -1456,24 +1466,12 @@ bool CircuitBlock::handleLinePass1(
 		  << "HDL compile failed";
 		result = false;
 	      }
-
-	    *(void **) (&regFunc) = dlsym(handle, "registerDevice");
-	    
-	    if((error = dlerror()) != NULL)
-	      {
-		Report::UserError().at(netlistFilename_, line[0].lineNumber_)
-		  << "dynamic library load failed" << error;
-		result = false;
-	      }
-
-	    // register the HDL device
-	    regFunc();
-	    result = true;
+	    std::cout << "VA module " << path << " is loaded." << std::endl;
 	  }
 		
       }
 
-    // added end
+    // added to support verilog-A end
     
     else if (ES1 == ".SUBCKT")
     {
@@ -2731,4 +2729,5 @@ bool Xyce::IO::unpackAliasNodeMap(AliasNodeMap& alias_node_map, char* char_buffe
 
   return true;
 }
+
 
