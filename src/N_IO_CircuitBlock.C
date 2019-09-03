@@ -1373,7 +1373,8 @@ bool CircuitBlock::handleLinePass1(
     {
       xyce_install_path=line[1].string_;
       int len = xyce_install_path.length();
-      if(xyce_install_path[len] == '"' && xyce_install_path[0] == '"')
+      if((xyce_install_path[len-1] == '"'  && xyce_install_path[0] == '"') || 
+         (xyce_install_path[len-1] == '\'' && xyce_install_path[0] == '\''))
 	xyce_install_path = xyce_install_path.substr(1, len - 2);
     }
     // For user to give Verilog-A common header path (e.g.,disciplines.vams etc)
@@ -1381,7 +1382,8 @@ bool CircuitBlock::handleLinePass1(
     {
       hdl_headerpath=line[1].string_;
       int len = hdl_headerpath.length();
-      if(hdl_headerpath[len] == '"' && hdl_headerpath[0] == '"')
+      if((hdl_headerpath[len-1] == '"'  && hdl_headerpath[0] == '"') ||
+         (hdl_headerpath[len-1] == '\'' && hdl_headerpath[0] == '\''))
 	hdl_headerpath = hdl_headerpath.substr(1, len - 2);
     }
     else if (ES1 == ".HDL")
@@ -1395,7 +1397,8 @@ bool CircuitBlock::handleLinePass1(
 	struct stat va_stat, so_stat;
 	int result_va, result_so;
 
-	if(filename[len] == '"' && filename[0] == '"')
+	if((filename[len-1] == '"'  && filename[0] == '"') ||
+	   (filename[len-1] == '\'' && filename[0] == '\'') )
 	  filename = filename.substr(1, len - 2);
 	
 	std::string modulename, filename_base;
@@ -1432,7 +1435,7 @@ bool CircuitBlock::handleLinePass1(
                   cmd = "cp " + hdl_headerpath + "/* .";
 		  system(cmd.c_str());
                 }
-		cmd = xyce_install_path + "/bin/xyce_vams " + filename;
+		cmd = xyce_install_path + "/bin/xyce_vams -v " + filename;
                 std::cout << "VA code gen:" <<cmd<<std::endl;
 		system(cmd.c_str());
 		cmd  = "cd vabuild; ln -sf ../" + modulename + ".* . ;";
