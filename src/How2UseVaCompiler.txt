@@ -1,0 +1,42 @@
+This is a readme file to introduce how to use Xyce BE codes to support VA compiler.
+1. Build Xyce
+   Using '--enable-shared --enable-xyce-shareable' to build Xyce to use .so VA compiled lib during simualtion.
+2. Build VA compiler
+   cd VAFE/src && make
+   Using the above command to build our own VA compiler: xyce_vams, please use the gcc version with full support c++11
+3. Prepare the xyce with xyce_vams install package
+   Xyce: make install  to install to $xyce_intall_path
+   Copy xyce_vams binary to $xyce_intall_path/bin
+   Prepare VA header files like:disciplines.vams constants.vams, as in $vaheader_path
+4. Prepare test case
+   The netlist should be able to run xyce, and two options should be added to the netlist to run VA model on-the-fly.
+
+   .xyceinstallpath <your path as $xyce_intall_path>
+   .hdlheaderpath <your path as $vaheader_path>
+5. run simulation with the netlist at step4
+   xyce netlist.sp
+   You can check the simulation results as xyce's orignal output file, *.prn.
+
+6. Other tips
+   Limitation of xyce_vams:
+   1) undefined variable in va module, don't check during VA to C generation, but failed at compile C code stage
+   2) Node collapse handling, can handle but VA codes should be adjust as below:
+      Change voltage contribution to current one for these collapsed nodes, for example.
+      if (R < 1e-2) begin
+        V(a,a1) <+ 0.0;
+        I(a1,c) <+ V(a1,c) / R*2 ;
+      end
+      else begin
+        //V(a,a1) <+ I(a,a1)*R*2;  //This line doesn't work for xyce_vams now !!!
+        I(a,a1) <+ V(a,a1)/(R*2);
+        I(a1,c) <+ V(a1,c) / R*2 ;
+      end
+   3) Noise analysis is not supported
+   4) continue line with '\', notes a) needs '\' to connect the splited strings, but b) doesn't need it.
+        a) $strobe( "Temperature effect has caused cjswg to be negative. \
+                      Cjswg is clamped to zero.\n");
+        b) BSIM3unitLengthSidewallTempJctCap = BSIM3unitLengthSidewallJctCap 
+                                                 * (1.0 + T0);
+
+    
+
