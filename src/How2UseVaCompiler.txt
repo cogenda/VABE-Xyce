@@ -13,6 +13,11 @@ This is a readme file to introduce how to use Xyce BE codes to support VA compil
 
    .xyceinstallpath <your path as $xyce_intall_path>
    .hdlheaderpath <your path as $vaheader_path>
+   .hdl <your path of va file>     !!! using "..." or no ".." for your path, '...' seems not support
+   y<va module name> x1 n1 n2 vamodel_name <instance_pars>
+   Example:
+   ybsim4_va xp2 4 3 1 1 p1 l=0.18u w=10u ad=5p pd=6u as=5p ps=6u SA=2u SB=8u NF=3 SD=0.2u
+
 5. run simulation with the netlist at step4
    xyce netlist.sp
    You can check the simulation results as xyce's orignal output file, *.prn.
