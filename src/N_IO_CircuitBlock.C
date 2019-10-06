@@ -1038,8 +1038,6 @@ bool CircuitBlock::handleLinePass1(
   std::vector< std::string > &  libInside)
 {
   result = true;
-  static std::string xyce_install_path=".";
-  static std::string hdl_headerpath=".";
   char lineType;
   TokenVector line;
   ExtendedString ES1 ( " " ); 
@@ -1367,64 +1365,21 @@ bool CircuitBlock::handleLinePass1(
         << ".SAVE line not handled properly, statement skipped";
     }
 
-    // added to support verilog-A
-    // For user to give Xyce install path
-    else if (ES1 == ".XYCEINSTALLPATH")
-    {
-      xyce_install_path=line[1].string_;
-      int len = xyce_install_path.length();
-      if((xyce_install_path[len-1] == '"'  && xyce_install_path[0] == '"') || 
-         (xyce_install_path[len-1] == '\'' && xyce_install_path[0] == '\''))
-	xyce_install_path = xyce_install_path.substr(1, len - 2);
-    }
-    // For user to give Verilog-A common header path (e.g.,disciplines.vams etc)
-    else if (ES1 == ".HDLHEADERPATH" )
-    {
-      hdl_headerpath=line[1].string_;
-      int len = hdl_headerpath.length();
-      if((hdl_headerpath[len-1] == '"'  && hdl_headerpath[0] == '"') ||
-         (hdl_headerpath[len-1] == '\'' && hdl_headerpath[0] == '\''))
-	hdl_headerpath = hdl_headerpath.substr(1, len - 2);
-    }
+    // added to support verilog-A begins
     else if (ES1 == ".HDL")
       {
+        static std::string xyce_install_path=::getenv("XYCE_INSTALL_PATH");
 	result = true;
-
-	// compile the verilog-AMS source code
+	struct stat va_stat;
+	int result_va;
 	std::string va_filename = line[1].string_;
-	int len = va_filename.length();
-
-	struct stat va_stat, so_stat;
-	int result_va, result_so;
-
+        std::string so_filename;
+        std::string cmd, file_with_vaLibName="VAMS_LIB_NMAE.txt";
+        int len = va_filename.length();
 	if((va_filename[len-1] == '"'  && va_filename[0] == '"') ||
 	   (va_filename[len-1] == '\'' && va_filename[0] == '\'') )
-	  va_filename = va_filename.substr(1, len - 2);
-	
-	std::string va_modulename, va_filename_base, netlistname_base,vadir, valibname;
-        va_filename_base = std::string(basename(va_filename.c_str()));
-        netlistname_base = std::string(basename(netlistFilename_.c_str()));
-	size_t pos = va_filename_base.rfind('.');
-
-	if(pos != std::string::npos)
-	  va_modulename = va_filename_base.substr(0, pos);
-	else
-	  va_modulename = va_filename_base;
-
-        pos = netlistname_base.rfind('.');
-	if(pos != std::string::npos)
-	  netlistname_base = netlistname_base.substr(0, pos);
-	else
-	  netlistname_base = netlistname_base;
-
-        vadir = netlistname_base + ".vadir";
-        valibname = "lib" + va_modulename + ".so";
-
-	std::string so_name = vadir + "/" + valibname;
-	result_va = stat(va_filename.c_str(), & va_stat);
-	result_so = stat(so_name.c_str(), & so_stat);
-        const char *xyce_va_debug = ::getenv("XYCE_DEBUG_VAMS");
-
+	  va_filename = va_filename.substr(1, len - 2);        
+ 	result_va = stat(va_filename.c_str(), & va_stat);
 	void *handle;
 	if(result_va != 0)
 	  {
@@ -1433,51 +1388,27 @@ bool CircuitBlock::handleLinePass1(
 	    result = false;
 	  }
 	else
-	  {
-	    if(result_so != 0 || (result_so == 0 && (so_stat.st_mtime < va_stat.st_mtime) ))
-	      {
-		std::string cmd;
-		cmd = "mkdir -p "+ vadir;
-                system(cmd.c_str());
-		cmd = "rm -rf "  + vadir + "/*";
-                system(cmd.c_str());
-                if (hdl_headerpath != "")
-                {
-                  cmd = "cp -rf " + hdl_headerpath + "/* .";
-		  system(cmd.c_str());
-                }
-                // using environment var 'XYCE_DEBUG_VAMS=1|y' to enable dumping debug info
-                if(xyce_va_debug && (xyce_va_debug[0] == '1' || xyce_va_debug[0] == 'y'
-                      || xyce_va_debug[0] == 'Y'))
-                  cmd = xyce_install_path + "/bin/xyce_vams -v " + va_filename;
-                else
-                  cmd = xyce_install_path + "/bin/xyce_vams " + va_filename;
-                std::cout << "VA code gen:" <<cmd<<std::endl;
-		system(cmd.c_str());
-		cmd  = "cd " + vadir + "; ln -sf ../" + va_modulename + ".* . ;";
-		cmd += "ln -sf ../" + va_filename + " . ";
-		system(cmd.c_str());
-		std::string compileCmd;
-		std::string linkCmd;
-                
-		compileCmd = "g++ -g -O0 \
-                              -I" + xyce_install_path + "/include/ \
-                              -fPIC -c " + vadir + "/" \
-                              + va_modulename + ".C -o " + vadir + "/" + va_modulename + ".o";
-                std::cout << "VA code compile:" <<compileCmd<<std::endl;
-		linkCmd = "g++ -g -O0 -m64 -Wl,-O1 -shared -o " + so_name + " -L" + xyce_install_path + "/lib/ -lxyce  \
-                           -Wl,-rpath=" + xyce_install_path + "/lib " + vadir + "/" + va_modulename + ".o";
-                std::cout << "VA so build:" << linkCmd <<std::endl;
-		system(compileCmd.c_str());
-		system(linkCmd.c_str());
-	      }
-	  }
+	  {       
+	    // generate and compile the verilog-AMS source code
+	    cmd = xyce_install_path+"/bin/vacompile.sh "+ xyce_install_path + ' ' + netlistFilename_ + ' ' + va_filename + ' ' + file_with_vaLibName;
+            system(cmd.c_str());
+          }
 
 	if(result)
 	  {
 	    char *error;
+            std::ifstream fin(file_with_vaLibName.c_str());
+            if (!fin)
+            {
+              std::cout << "cannot open the file contained va lib name:" << file_with_vaLibName << std::endl;
+            }
+            else
+            {
+              fin >> so_filename;
+              fin.close();  
+            }
 
-	    handle = dlopen(so_name.c_str(), RTLD_LAZY);
+	    handle = dlopen(so_filename.c_str(), RTLD_LAZY);
 	    if(!handle)
 	      {
 		std::cout << dlerror() << std::endl;
@@ -1485,7 +1416,7 @@ bool CircuitBlock::handleLinePass1(
 		  << "HDL compile failed";
 		result = false;
 	      }
-	    std::cout << "VA module " << so_name << " is loaded." << std::endl;
+	    std::cout << "VA module " << so_filename << " is loaded." << std::endl;
 	  }
 		
       }
