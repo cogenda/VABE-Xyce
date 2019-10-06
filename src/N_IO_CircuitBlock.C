@@ -1380,7 +1380,7 @@ bool CircuitBlock::handleLinePass1(
 	   (va_filename[len-1] == '\'' && va_filename[0] == '\'') )
 	  va_filename = va_filename.substr(1, len - 2);        
  	result_va = stat(va_filename.c_str(), & va_stat);
-	void *handle;
+	void *handle=NULL;
 	if(result_va != 0)
 	  {
 	    Report::UserError().at(netlistFilename_, line[0].lineNumber_)
@@ -1391,7 +1391,12 @@ bool CircuitBlock::handleLinePass1(
 	  {       
 	    // generate and compile the verilog-AMS source code
 	    cmd = xyce_install_path+"/bin/vacompile.sh "+ xyce_install_path + ' ' + netlistFilename_ + ' ' + va_filename + ' ' + file_with_vaLibName;
-            system(cmd.c_str());
+            int ret=system(cmd.c_str());
+            if(ret!=0) 
+            {
+              std::cout << "failed to run va compiling script:vacompile.sh." << std::endl;
+              result = false;
+            }
           }
 
 	if(result)
@@ -1406,9 +1411,9 @@ bool CircuitBlock::handleLinePass1(
             {
               fin >> so_filename;
               fin.close();  
+	      handle = dlopen(so_filename.c_str(), RTLD_LAZY);
             }
 
-	    handle = dlopen(so_filename.c_str(), RTLD_LAZY);
 	    if(!handle)
 	      {
 		std::cout << dlerror() << std::endl;
