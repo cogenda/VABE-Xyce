@@ -7,12 +7,11 @@ This is a readme file to introduce how to use Xyce BE codes to support VA compil
 3. Prepare the xyce with xyce_vams install package
    Xyce: make install  to install to $xyce_intall_path
    Copy xyce_vams binary to $xyce_intall_path/bin
-   Prepare VA header files like:disciplines.vams constants.vams, as in $vaheader_path
+   Prepare VA header files like:disciplines.vams constants.vams, as in $xyce_intall_path/vaheader 
+   Put the script `vacompile.sh' to $xyce_intall_path/bin, this script will generate C code and compile VA lib at
+   <netlist's basename>.vadir/
 4. Prepare test case
-   The netlist should be able to run xyce, and two options should be added to the netlist to run VA model on-the-fly.
-
-   .xyceinstallpath <your path as $xyce_intall_path>
-   .hdlheaderpath <your path as $vaheader_path>
+   The netlist should be able to run xyce, and one option below should be added to the netlist to run VA model on-the-fly.
    .hdl <your path of va file>     !!! using "..." or no ".." for your path, '...' seems not support
    y<va module name> x1 n1 n2 vamodel_name <instance_pars>
    Example:

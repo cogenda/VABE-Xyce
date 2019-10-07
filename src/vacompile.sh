@@ -5,7 +5,6 @@
 xyce_install_path=$1
 netlist_name=$2
 va_filename=$3
-file_with_vaLibName=$4
 XYCE_DEBUG_VAMS_OPT='' #'-v' to print debugging info from xyce_vams code generation
 xyce_bin=$xyce_install_path/bin/Xyce
 xyce_vams=$xyce_install_path/bin/xyce_vams
@@ -17,7 +16,8 @@ va_modulename=`grep "^module " $va_filename|awk '{print $2}'|sed 's/(.*//g'`
 vadir="`basename $netlist_name`"
 vadir="${vadir%%.*}.vadir"
 va_lib="lib${va_modulename}.so"
-echo $vadir/$va_lib > $file_with_vaLibName
+#Note: should be the first one message print out here, Xyce will get the first line for the so_lib path
+echo $vadir/$va_lib
 mkdir -p $vadir
 ln -sf ../${va_modulename}.C  $vadir/
 ln -sf ../${va_modulename}.h  $vadir/

@@ -66,7 +66,6 @@
 #include <N_IO_fwd.h>
 
 // added for VA support 
-#include <stdlib.h>
 #include <dlfcn.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -1374,7 +1373,7 @@ bool CircuitBlock::handleLinePass1(
 	int result_va;
 	std::string va_filename = line[1].string_;
         std::string so_filename;
-        std::string cmd, file_with_vaLibName="VAMS_LIB_NMAE.txt";
+        std::string cmd;
         int len = va_filename.length();
 	if((va_filename[len-1] == '"'  && va_filename[0] == '"') ||
 	   (va_filename[len-1] == '\'' && va_filename[0] == '\'') )
@@ -1390,9 +1389,18 @@ bool CircuitBlock::handleLinePass1(
 	else
 	  {       
 	    // generate and compile the verilog-AMS source code
-	    cmd = xyce_install_path+"/bin/vacompile.sh "+ xyce_install_path + ' ' + netlistFilename_ + ' ' + va_filename + ' ' + file_with_vaLibName;
-            int ret=system(cmd.c_str());
-            if(ret!=0) 
+            FILE *fp;
+	    cmd = xyce_install_path+"/bin/vacompile.sh "+ xyce_install_path + ' ' + netlistFilename_ + ' ' + va_filename;
+            fp=popen(cmd.c_str(),"r");
+            if(fp) 
+            {
+              char buffer[100];
+              fgets(buffer,sizeof(buffer),fp);
+              pclose(fp);
+              so_filename = buffer;
+              so_filename.erase(so_filename.find_last_not_of("\n")+1);
+            }
+            else
             {
               std::cout << "failed to run va compiling script:vacompile.sh." << std::endl;
               result = false;
@@ -1401,19 +1409,7 @@ bool CircuitBlock::handleLinePass1(
 
 	if(result)
 	  {
-	    char *error;
-            std::ifstream fin(file_with_vaLibName.c_str());
-            if (!fin)
-            {
-              std::cout << "cannot open the file contained va lib name:" << file_with_vaLibName << std::endl;
-            }
-            else
-            {
-              fin >> so_filename;
-              fin.close();  
-	      handle = dlopen(so_filename.c_str(), RTLD_LAZY);
-            }
-
+	    handle = dlopen(so_filename.c_str(), RTLD_LAZY);
 	    if(!handle)
 	      {
 		std::cout << dlerror() << std::endl;
@@ -1421,7 +1417,8 @@ bool CircuitBlock::handleLinePass1(
 		  << "HDL compile failed";
 		result = false;
 	      }
-	    std::cout << "VA module " << so_filename << " is loaded." << std::endl;
+            else
+	      std::cout << "VA module " << so_filename << " is loaded." << std::endl;
 	  }
 		
       }
