@@ -1389,21 +1389,31 @@ bool CircuitBlock::handleLinePass1(
 	else
 	  {       
 	    // generate and compile the verilog-AMS source code
-            FILE *fp;
+            FILE *fp=NULL;
 	    cmd = xyce_install_path+"/bin/vacompile.sh "+ xyce_install_path + ' ' + netlistFilename_ + ' ' + va_filename;
             fp=popen(cmd.c_str(),"r");
-            if(fp) 
-            {
-              char buffer[100];
-              fgets(buffer,sizeof(buffer),fp);
-              pclose(fp);
-              so_filename = buffer;
-              so_filename.erase(so_filename.find_last_not_of("\n")+1);
-            }
-            else
+            if(fp == NULL) 
             {
               std::cout << "failed to run va compiling script:vacompile.sh." << std::endl;
               result = false;
+            }
+            else
+            {
+              char buffer[1024];
+              int count=0;
+              while (fgets(buffer, sizeof(buffer), fp) != NULL) {
+                std::cout << "Run vacompile.sh: " << buffer << std::endl;
+                if (count==0) 
+                {
+                  so_filename = buffer;
+                  so_filename.erase(so_filename.find_last_not_of("\n")+1);
+                }
+                count++;
+              }              
+              if (pclose(fp) == -1) 
+              { 
+                  std::cout << "close popen filepointer fp error!" << std::endl; 
+              }              
             }
           }
 
