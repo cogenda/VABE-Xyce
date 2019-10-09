@@ -1376,7 +1376,8 @@ bool CircuitBlock::handleLinePass1(
         std::string cmd;
         int len = va_filename.length();
 	if((va_filename[len-1] == '"'  && va_filename[0] == '"') ||
-	   (va_filename[len-1] == '\'' && va_filename[0] == '\'') )
+	   (va_filename[len-1] == '\'' && va_filename[0] == '\'')||
+	   (va_filename[len-1] == '}'  && va_filename[0] == '{'))
 	  va_filename = va_filename.substr(1, len - 2);        
  	result_va = stat(va_filename.c_str(), & va_stat);
 	void *handle=NULL;

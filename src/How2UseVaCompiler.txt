@@ -1,23 +1,34 @@
 This is a readme file to introduce how to use Xyce BE codes to support VA compiler.
 1. Build Xyce
    Using '--enable-shared --enable-xyce-shareable' to build Xyce to use .so VA compiled lib during simualtion.
+
 2. Build VA compiler
    cd VAFE/src && make
    Using the above command to build our own VA compiler: xyce_vams, please use the gcc version with full support c++11
+
 3. Prepare the xyce with xyce_vams install package
    Xyce: make install  to install to $xyce_intall_path
    Copy xyce_vams binary to $xyce_intall_path/bin
    Prepare VA header files like:disciplines.vams constants.vams, as in $xyce_intall_path/vaheader 
    Put the script `vacompile.sh' to $xyce_intall_path/bin, this script will generate C code and compile VA lib at
    <netlist's basename>.vadir/
+
 4. Prepare test case
    The netlist should be able to run xyce, and one option below should be added to the netlist to run VA model on-the-fly.
-   .hdl <your path of va file>     !!! using "..." or no ".." for your path, '...' seems not support
+   .hdl <your path of va file>     
+   Both the syntax below are supported:
+   .hdl abc.va
+   .hdl './abc.va'
+   .hdl "./abc.va"
+   .hdl "/tmp/abc.va"
    y<va module name> x1 n1 n2 vamodel_name <instance_pars>
    Example:
    ybsim4_va xp2 4 3 1 1 p1 l=0.18u w=10u ad=5p pd=6u as=5p ps=6u SA=2u SB=8u NF=3 SD=0.2u
 
 5. run simulation with the netlist at step4
+   env XYCE_INSTALL_PATH=$xyce_intall_path xyce netlist.sp
+   Or
+   export XYCE_INSTALL_PATH=$xyce_intall_path
    xyce netlist.sp
    You can check the simulation results as xyce's orignal output file, *.prn.
 
